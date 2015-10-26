@@ -5,8 +5,11 @@
 #include <unistd.h> 
 #include <mutex>
 #include <condition_variable>
+#include <cstdlib>
+#include <ctime>
 
 #define N 10240
+#define M 10000
 
 void *test_fft1( void *ptr );
 void *test_fft2( void *ptr );
@@ -60,7 +63,7 @@ main()
 
      start = clock();
      iret1 = pthread_create( &thread1, NULL, test_fft1, (void*) message1);
-     for (int i=0;i<1001;i++) {
+     for (int i=0;i<M+1;i++) {
          pthread_mutex_lock(&count_mutex1);
          start_fft=1;
          pthread_cond_signal(&count_threshold_cv1);     
@@ -71,15 +74,28 @@ main()
          finish_fft=0;
          pthread_mutex_unlock(&count_mutex);               
      };
-     //pthread_join( thread1, NULL);
+     pthread_join( thread1, NULL);
      end = clock();
      cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
      printf("time %lf \n",cpu_time_used);
 
 
+
      printf("Load 1024 points for 1000 repeat only fftw3 \n");
      start = clock();
-    for (int i=0;i<1000;i++) {         
+    for (int i=0;i<M;i++) {         
+        iret1 = pthread_create( &thread1, NULL, test_fft2, (void*) message1);
+        pthread_join( thread1, NULL);
+     };
+     end = clock();
+     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+     printf("time %lf \n",cpu_time_used);
+
+
+
+     printf("Load 1024 points for 1000 repeat only fftw3 \n");
+     start = clock();
+    for (int i=0;i<M;i++) {         
         test_fft2(&a);
      };
      end = clock();
@@ -117,26 +133,26 @@ while(1){
          pthread_mutex_unlock(&count_mutex1);               
 
 
-         for(int i=0;i<N;i++) in[i][0]=i,in[i][1]=0;
+         for(int i=0;i<N;i++) in[i][0]=rand() % 1000 + 1,in[i][1]=0;
 
          p = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
          
          fftw_execute(p); /* repeat as needed */
-         
+          
          pthread_mutex_lock(&count_mutex);
          finish_fft=1;
          pthread_cond_signal(&count_threshold_cv);     
          pthread_mutex_unlock(&count_mutex);
 
 
-         if (j++>999) {
+         if (j++>M-1) {
                fftw_destroy_plan(p);
                fftw_free(in); 
                fftw_free(out);
                printf("Finish test1 \n");
                pthread_exit(0);
           }
-};
+     };
      
 }
 
@@ -149,7 +165,7 @@ void *test_fft2( void *ptr )
          in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
          out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
 
-         for(int i=0;i<N;i++) in[i][0]=i,in[i][1]=0;
+         for(int i=0;i<N;i++) in[i][0]=rand() % 1000 + 1,in[i][1]=0;
 
          p = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
          
@@ -172,14 +188,14 @@ void *test_fft3( void *ptr )
 {
      
 
-     for (int j=0;j<1000;j++) {    
+     for (int j=0;j<M;j++) {    
          fftw_complex *in, *out;
          fftw_plan p;
          
          in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
          out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
 
-         for(int i=0;i<N;i++) in[i][0]=i,in[i][1]=0;
+         for(int i=0;i<N;i++) in[i][0]=rand() % 1000 + 1,in[i][1]=0;
 
          p = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
          
