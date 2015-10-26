@@ -35,8 +35,8 @@ int horizontalNum = 8;
 int verticalNum = 8;;
 int fftBufferSize = 1024;
 
-fftw_complex *in1, *out1;
-fftw_plan p1;
+//fftwf_complex *in1, *out1;
+//fftwf_plan p1;
 
 
 int finish_fft;
@@ -45,14 +45,14 @@ int start_fft;
 typedef double point[2];
 
 typedef union _vfftw_complex {
-     fftw_complex p;
+     fftwf_complex p;
      struct sfftw_complex{
-          double re;
-          double im;
+          float re;
+          float im;
      } sp;
 } vfftw_complex;
 
-std::complex <double> koeffs[GRID_SIZE][FFT_BUFFER_SIZE];
+std::complex <float> koeffs[GRID_SIZE][FFT_BUFFER_SIZE];
 std::vector < vfftw_complex > delayedVectors[GRID_SIZE];
 fftw_complex summ[FFT_BUFFER_SIZE];
 
@@ -77,8 +77,8 @@ main()
 	
 
 	for (int j = 0; j < horizontalNum * verticalNum; j++)	{
-	   fftw_complex *tt;         
-        tt = ( fftw_complex*) fftw_malloc(sizeof(fftw_complex) * fftBufferSize);
+	   fftwf_complex *tt;         
+        tt = ( fftwf_complex*) fftwf_malloc(sizeof(fftwf_complex) * fftBufferSize);
         delayedVectors[j].assign((vfftw_complex*)tt,(vfftw_complex*)tt+fftBufferSize);	
 	 }
 
@@ -139,8 +139,8 @@ main()
 
 fftw_complex tmp_summ[FFT_BUFFER_SIZE];
 
-double  ac,bd,ad,bc;
-double  ac1,bd1,ad1,bc1;
+float  ac,bd,ad,bc;
+float  ac1,bd1,ad1,bc1;
 
 void f_array_mul(void){
 
