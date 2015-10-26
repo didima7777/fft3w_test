@@ -137,34 +137,42 @@ main()
      exit(0);
 };
 
-fftw_complex tmp_summ ;
+fftw_complex tmp_summ[FFT_BUFFER_SIZE];
+
 double  ac,bd,ad,bc;
+double  ac1,bd1,ad1,bc1;
 
 void f_array_mul(void){
 
+for (int j = 0; j < fftBufferSize ; j++) tmp_summ[j][0]=0,tmp_summ[j][1]=0;
 
-for (int i = 0; i < fftBufferSize ; i++){//for (int i = 0; i < GlobalData::fftOversamplingK * (GlobalData::fftBufferSize - GlobalData::fftOverload); i++){//= GlobalData::fftOversamplingK) 
-        tmp_summ[0]=0;
-        tmp_summ[1]=0;
-        for (int j = 0; j < horizontalNum * verticalNum; j++) {
+for (int j = 0; j < horizontalNum * verticalNum ; j++){//for (int i = 0; i < GlobalData::fftOversamplingK * (GlobalData::fftBufferSize - GlobalData::fftOverload); i++){//= GlobalData::fftOversamplingK) 
+
+        for (int i = 0; i < fftBufferSize; i+=2) {
             try {
               ac = delayedVectors[j].at(i).p[0] * koeffs[j][i].real();
               bd = delayedVectors[j].at(i).p[1] * koeffs[j][i].imag();
               ad = delayedVectors[j].at(i).p[0] * koeffs[j][i].imag();
               bc = delayedVectors[j].at(i).p[1] * koeffs[j][i].real();
+
+              ac1 = delayedVectors[j].at(i+1).p[0] * koeffs[j][i+1].real();
+              bd1 = delayedVectors[j].at(i+1).p[1] * koeffs[j][i+1].imag();
+              ad1 = delayedVectors[j].at(i+1).p[0] * koeffs[j][i+1].imag();
+              bc1 = delayedVectors[j].at(i+1).p[1] * koeffs[j][i+1].real();
+
             } catch (const std::out_of_range& oor) {
                 std::cout << "Out of Range error: " << oor.what() << '\n';
             }
-            tmp_summ[0] += (ac - bd);
-            tmp_summ[1] += (bc + ad);
-        }
-        tmp_summ[0] = tmp_summ[0] / ((horizontalNum * verticalNum) * fftBufferSize );
-        tmp_summ[1] = tmp_summ[1] / ((horizontalNum * verticalNum) * fftBufferSize );
-        
-        summ[i][0] = tmp_summ[0];
-        summ[i][1] = tmp_summ[1];
+            tmp_summ[i][0] += (ac - bd); 
+            tmp_summ[i+1][0] += (ac1 - bd1);
+            tmp_summ[i][1] += (bc + ad);
+            tmp_summ[i+1][1] += (bc1 + ad1);
+        }        
     }
-
+    for (int j = 0; j < fftBufferSize ; j++) {
+        summ[j][0] = tmp_summ[j][0] / ((horizontalNum * verticalNum) * fftBufferSize );
+        summ[j][1] = tmp_summ[j][1] / ((horizontalNum * verticalNum) * fftBufferSize );     
+     }
  }
 
 
