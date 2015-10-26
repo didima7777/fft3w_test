@@ -28,7 +28,7 @@ using namespace std;
 void test_fft1();
 void test_fft2();
 void test_fft3();
-
+void f_array_mul();
 
 int horizontalNum = 8;
 int verticalNum = 8;;
@@ -43,8 +43,18 @@ int start_fft;
 // std::condition_variable data_cond;
 // std::mutex m;
 
+typedef double point[2];
+
+typedef union _vfftw_complex {
+     fftw_complex p;
+     struct sfftw_complex{
+          double re;
+          double im;
+     } sp;
+} vfftw_complex;
+
 std::complex <double> koeffs[GRID_SIZE][FFT_BUFFER_SIZE];
-std::vector < fftw_complex > delayedVectors[GRID_SIZE];
+std::vector < vfftw_complex > delayedVectors[GRID_SIZE];
 fftw_complex summ[FFT_BUFFER_SIZE];
 
 // pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;    
@@ -85,9 +95,9 @@ main()
 	
 
 	for (int j = 0; j < horizontalNum * verticalNum; j++)	{
-		fftw_complex *tt;         
-        tt = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * fftBufferSize);
-		delayedVectors[j].assign(tt,tt+fftBufferSize);	
+	   fftw_complex *tt;         
+        tt = ( fftw_complex*) fftw_malloc(sizeof(fftw_complex) * fftBufferSize);
+        delayedVectors[j].assign((vfftw_complex*)tt,(vfftw_complex*)tt+fftBufferSize);	
 	 }
      start = clock();
 
@@ -103,6 +113,8 @@ main()
          // while (!finish_fft) pthread_cond_wait(&count_threshold_cv,&count_mutex);          
          // finish_fft=0;
          // pthread_mutex_unlock(&count_mutex);               
+          std::thread iret1(f_array_mul);
+          iret1.join();
      };
 //     pthread_join( thread1, NULL);
      end = clock();
@@ -155,10 +167,10 @@ for (int i = 0; i < fftBufferSize ; i++){//for (int i = 0; i < GlobalData::fftOv
         tmp_summ[1]=0;
         for (int j = 0; j < horizontalNum * verticalNum; j++) {
             try {
-              ac = delayedVectors[j].at(i)[0] * koeffs[j][i].real();
-              bd = delayedVectors[j].at(i)[1] * koeffs[j][i].imag();
-              ad = delayedVectors[j].at(i)[0] * koeffs[j][i].imag();
-              bc = delayedVectors[j].at(i)[1] * koeffs[j][i].real();
+              ac = delayedVectors[j].at(i).p[0] * koeffs[j][i].real();
+              bd = delayedVectors[j].at(i).p[1] * koeffs[j][i].imag();
+              ad = delayedVectors[j].at(i).p[0] * koeffs[j][i].imag();
+              bc = delayedVectors[j].at(i).p[1] * koeffs[j][i].real();
             } catch (const std::out_of_range& oor) {
                 std::cout << "Out of Range error: " << oor.what() << '\n';
             }
