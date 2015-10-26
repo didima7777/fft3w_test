@@ -15,6 +15,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <chrono>
 
 #define N 1024
 #define M 10
@@ -40,8 +41,6 @@ fftw_plan p1;
 
 int finish_fft;
 int start_fft;
-// std::condition_variable data_cond;
-// std::mutex m;
 
 typedef double point[2];
 
@@ -57,23 +56,13 @@ std::complex <double> koeffs[GRID_SIZE][FFT_BUFFER_SIZE];
 std::vector < vfftw_complex > delayedVectors[GRID_SIZE];
 fftw_complex summ[FFT_BUFFER_SIZE];
 
-// pthread_mutex_t count_mutex = PTHREAD_MUTEX_INITIALIZER;    
-// pthread_cond_t count_threshold_cv = PTHREAD_COND_INITIALIZER;
+ std::mutex count_mutex;    
+ std::condition_variable count_threshold_cv;
 
 
-// pthread_mutex_t count_mutex1 = PTHREAD_MUTEX_INITIALIZER;    
-// pthread_cond_t count_threshold_cv1 = PTHREAD_COND_INITIALIZER;
+ std::mutex count_mutex1;    
+ std::condition_variable count_threshold_cv1;
 
-
-void *rec(){
-     int i=0;
-          while(1) {
-          finish_fft=0;
-          //pthread_mutex_lock(&count_mutex);  
-          //while (!finish_fft) pthread_cond_wait(&count_threshold_cv,&count_mutex);          
-          //pthread_mutex_unlock(&count_mutex);               
-     }
-}
 main()
 {
      //pthread_t thread1, thread2 , thread3;
@@ -82,13 +71,6 @@ main()
      clock_t start, end;
      double cpu_time_used;
 
-    /* Create independent threads each of which will execute function */
-
-     //iret1 = pthread_create( &test_fft1, NULL, print_message_function, (void*) message1);
-
-     /* Wait till threads are complete before main continues. Unless we  */
-     /* wait we run the risk of executing an exit which will terminate   */
-     /* the process and all threads before the threads have completed.   */
      int a;
      printf("Load 1024 points for 1000 repeat thread fftw3 \n");
      //pthread_create( &thread3, NULL, rec, (void*) message1);
@@ -99,28 +81,27 @@ main()
         tt = ( fftw_complex*) fftw_malloc(sizeof(fftw_complex) * fftBufferSize);
         delayedVectors[j].assign((vfftw_complex*)tt,(vfftw_complex*)tt+fftBufferSize);	
 	 }
+
      start = clock();
-
-     
-	//std::thread iret1(test_fft1);
+     std::thread iret1(test_fft1);
      for (int i=0;i<M+1;i++) {
-         // pthread_mutex_lock(&count_mutex1);
-         // start_fft=1;
-         // pthread_cond_signal(&count_threshold_cv1);     
-         // pthread_mutex_unlock(&count_mutex1);
 
-         // pthread_mutex_lock(&count_mutex);  
-         // while (!finish_fft) pthread_cond_wait(&count_threshold_cv,&count_mutex);          
-         // finish_fft=0;
-         // pthread_mutex_unlock(&count_mutex);               
-          std::thread iret1(f_array_mul);
-          iret1.join();
+          {
+            std::unique_lock<std::mutex> locker(count_mutex);     
+            start_fft=1;
+            count_threshold_cv.notify_one();
+          }
+          {           
+           std::unique_lock<std::mutex> locker(count_mutex1);
+           while (!finish_fft) count_threshold_cv1.wait(locker);          
+           finish_fft=0;
+          }
+          //std::this_thread::sleep_for(std::chrono::milliseconds(1000));     
      };
-//     pthread_join( thread1, NULL);
+     iret1.join();
      end = clock();
      cpu_time_used = (((double) (end - start)) / CLOCKS_PER_SEC) / M;
      printf("time %lf \n",cpu_time_used);
-
 
 
      printf("Load 1024 points for 1000 repeat only fftw3 \n");
@@ -187,92 +168,47 @@ for (int i = 0; i < fftBufferSize ; i++){//for (int i = 0; i < GlobalData::fftOv
  }
 
 
-// void *test_fft1( void *ptr )
-// {
-//          fftw_complex *in, *out;
-//          fftw_plan p;
-//          int j=0;
+void test_fft1()
+{
+int j=0;
 
-//          in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-//          out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-         
-// while(1){
-//          pthread_mutex_lock(&count_mutex1);  
-//          while (!start_fft) pthread_cond_wait(&count_threshold_cv1,&count_mutex1);
-//          start_fft=0;          
-//          pthread_mutex_unlock(&count_mutex1);               
+while(1){
+          {           
+           std::unique_lock<std::mutex> locker(count_mutex);
+           while (!start_fft) count_threshold_cv.wait(locker);          
+           start_fft=0;
+          }               
+
+	     f_array_mul();
+
+          {
+            std::unique_lock<std::mutex> locker(count_mutex1);
+            finish_fft=1;
+            count_threshold_cv1.notify_one();
+          }
 
 
-//          // for(int i=0;i<N;i++) in[i][0]=rand() % 1000 + 1,in[i][1]=0;
+         if (j++>M-1) {
+               printf("Finish test1 \n");
+               pthread_exit(0);
+          }
 
-//          // p = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
-         
-//          // fftw_execute(p);  repeat as needed 
-          
-//          pthread_mutex_lock(&count_mutex);
-//          finish_fft=1;
-//          pthread_cond_signal(&count_threshold_cv);     
-//          pthread_mutex_unlock(&count_mutex);
-
-// 		 f_array_mul();
-
-//          if (j++>M-1) {
-//                // fftw_destroy_plan(p);
-//                // fftw_free(in); 
-//                // fftw_free(out);
-//                printf("Finish test1 \n");
-//                pthread_exit(0);
-//           }
-//      };
+     };
      
-// }
+}
 
 void test_fft2()
 {
-         // fftw_complex *in, *out;
-         // fftw_plan p;
-         // int i=0;
 
-         // in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-         // out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-
-         // for(int i=0;i<N;i++) in[i][0]=rand() % 1000 + 1,in[i][1]=0;
-
-         // p = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
-         
-         // fftw_execute(p); /* repeat as needed */
-         
-         // fftw_destroy_plan(p);
-         // fftw_free(in); 
-         // fftw_free(out);
 		f_array_mul();
 
          
 }
 
 void test_fft3()
-{
-     
-
+{     
       for (int j=0;j<M;j++) {    
-     //     fftw_complex *in, *out;
-     //     fftw_plan p;
-         
-     //     in = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-     //     out = (fftw_complex*) fftw_malloc(sizeof(fftw_complex) * N);
-
-     //     for(int i=0;i<N;i++) in[i][0]=rand() % 1000 + 1,in[i][1]=0;
-
-     //     p = fftw_plan_dft_1d(N, in, out, FFTW_FORWARD, FFTW_ESTIMATE);
-         
-     //     fftw_execute(p); /* repeat as needed */
-         
-     //     fftw_destroy_plan(p);
-     //     fftw_free(in); 
-     //     fftw_free(out);
-
 		f_array_mul();
-         //usleep(4600);
      }         
      
 }
